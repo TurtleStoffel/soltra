@@ -13,6 +13,7 @@
     "daisyui": "^5.3.7",
     "react": "^19",
     "react-dom": "^19",
+    "react-router-dom": "^7.9.4",
     "tailwindcss": "^4.1.11"
   },
   "devDependencies": {

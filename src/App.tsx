@@ -1,31 +1,39 @@
-import { APITester } from "./APITester";
+import { HashRouter, Routes, Route } from "react-router-dom";
+import { Header } from "./components/Header";
 import "./index.css";
 
-import logo from "./logo.svg";
-import reactLogo from "./react.svg";
+function Home() {
+  return <div className="p-8">Home</div>;
+}
+
+function Configuration() {
+  return <div className="p-8">Configuration</div>;
+}
+
+function TaskGraph() {
+  return <div className="p-8">Task Graph</div>;
+}
+
+function TaskPanel() {
+  return <div className="p-8">Task Panel</div>;
+}
+
+function Products() {
+  return <div className="p-8">Products</div>;
+}
 
 export function App() {
   return (
-    <div className="max-w-7xl mx-auto p-8 text-center relative z-10">
-      <div className="flex justify-center items-center gap-8 mb-8">
-        <img
-          src={logo}
-          alt="Bun Logo"
-          className="h-24 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#646cffaa] scale-120"
-        />
-        <img
-          src={reactLogo}
-          alt="React Logo"
-          className="h-24 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#61dafbaa] animate-[spin_20s_linear_infinite]"
-        />
-      </div>
-
-      <h1 className="text-5xl font-bold my-4 leading-tight">Bun + React</h1>
-      <p>
-        Edit <code className="bg-[#1a1a1a] px-2 py-1 rounded font-mono">src/App.tsx</code> and save to test HMR
-      </p>
-      <APITester />
-    </div>
+    <HashRouter>
+      <Header />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/configuration" element={<Configuration />} />
+        <Route path="/task-graph" element={<TaskGraph />} />
+        <Route path="/task" element={<TaskPanel />} />
+        <Route path="/products" element={<Products />} />
+      </Routes>
+    </HashRouter>
   );
 }
 
