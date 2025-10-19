@@ -73,16 +73,20 @@ export function ConfigurationPanel() {
             ))}
 
             <div className="mt-6 p-4 bg-base-200 rounded">
-                <p className="text-sm">
-                    <strong>Note:</strong> The Data Dir folder will contain standardized JSON files:
+                <div className="text-sm">
+                    <p>
+                        <strong>Note:</strong> The Data Dir folder will contain standardized JSON files:
+                    </p>
                     <ul className="list-disc ml-6 mt-2">
                         <li>tasks.json</li>
                         <li>products.json</li>
                         <li>task-execution-contexts.json</li>
                         <li>task-inbox.json</li>
                     </ul>
-                    These files will be created automatically when needed.
-                </p>
+                    <p className="mt-2">
+                        These files will be created automatically when needed.
+                    </p>
+                </div>
             </div>
         </div>
     );
