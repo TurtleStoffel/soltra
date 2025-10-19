@@ -75,7 +75,8 @@ export function ConfigurationPanel() {
             <div className="mt-6 p-4 bg-base-200 rounded">
                 <div className="text-sm">
                     <p>
-                        <strong>Note:</strong> The Data Dir folder will contain standardized JSON files:
+                        <strong>Note:</strong> The Data Dir folder will contain
+                        standardized JSON files:
                     </p>
                     <ul className="list-disc ml-6 mt-2">
                         <li>tasks.json</li>
