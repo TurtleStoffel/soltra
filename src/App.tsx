@@ -4,13 +4,10 @@ import "./index.css";
 import { ProductsPanel } from "./products/products-panel";
 import { ConfigurationPanel } from "./configuration/ConfigurationPanel";
 import { TaskScreen } from "./detailed-planning/task-screen";
+import { TaskGraph } from "./high-level-planning/task-graph";
 
 function Home() {
   return <div className="p-8">Home</div>;
-}
-
-function TaskGraph() {
-  return <div className="p-8">Task Graph</div>;
 }
 
 export function App() {
