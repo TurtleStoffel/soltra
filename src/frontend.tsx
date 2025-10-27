@@ -21,12 +21,12 @@ registerWorkstreamTaskCleanupCallback();
 registerGlobalOrderHooks();
 
 function start() {
-  const root = createRoot(document.getElementById("root")!);
-  root.render(<App />);
+    const root = createRoot(document.getElementById("root")!);
+    root.render(<App />);
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", start);
+    document.addEventListener("DOMContentLoaded", start);
 } else {
-  start();
+    start();
 }
