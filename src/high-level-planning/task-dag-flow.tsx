@@ -36,6 +36,7 @@ import { convertTasksToDAG } from "./dag-conversion";
 import { getTaskExecutionContext, setTaskExecutionContext } from "src/task-execution/task-execution-context-storage";
 import { executeTask } from "src/task-execution/task-execution-logic";
 import { TaskNode, type TaskNodeData } from "./dag-task-card";
+import { TaskSearchBar } from "./task-search-bar";
 
 function WorkstreamGroupNode({ data }: { data: { label: string } }) {
     return (
@@ -131,7 +132,6 @@ export default function TaskDAGFlow({
     const [isCreatingTask, setIsCreatingTask] = useState(false);
     const [isCreatingWorkstream, setIsCreatingWorkstream] = useState(false);
     const [showWorkstreamMenu, setShowWorkstreamMenu] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
     const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
     const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
     const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
@@ -470,35 +470,10 @@ export default function TaskDAGFlow({
         }
     }, [navigate]);
 
-    // Handle search for tasks
-    const handleSearch = useCallback((query: string) => {
-        setSearchQuery(query);
-
-        if (!query.trim() || !reactFlowInstance.current) {
-            setHighlightedNodeId(null);
-            return;
-        }
-
-        // Find matching task nodes (case-insensitive)
-        const taskNodes = nodes.filter(node => node.type === 'taskNode');
-        const matchingNode = taskNodes.find(node => {
-            const task = tasks.find(t => t.uuid === node.id);
-            return task?.title.toLowerCase().includes(query.toLowerCase());
-        });
-
-        if (matchingNode) {
-            setHighlightedNodeId(matchingNode.id);
-
-            // Navigate to the node with smooth animation
-            reactFlowInstance.current.setCenter(
-                matchingNode.position.x + 100, // offset by half node width
-                matchingNode.position.y + 50,  // offset by half node height
-                { zoom: 1.5, duration: 800 }
-            );
-        } else {
-            setHighlightedNodeId(null);
-        }
-    }, [nodes, tasks]);
+    // Handle highlight changes from search
+    const handleHighlightChange = useCallback((nodeId: string | null) => {
+        setHighlightedNodeId(nodeId);
+    }, []);
 
     useEffect(() => {
         loadAndValidateWorkstreams().then(setWorkstreams);
@@ -760,15 +735,12 @@ export default function TaskDAGFlow({
             className="bg-slate-800 rounded-lg relative"
         >
             {/* Search Bar */}
-            <div className="absolute top-2 right-2 z-10">
-                <input
-                    type="text"
-                    placeholder="Search tasks..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-md text-sm focus:outline-none focus:border-blue-400 w-64"
-                />
-            </div>
+            <TaskSearchBar
+                tasks={tasks}
+                nodes={nodes}
+                reactFlowInstance={reactFlowInstance.current}
+                onHighlightChange={handleHighlightChange}
+            />
 
             {connectionInProgress && (
                 <div className="absolute top-2 left-2 z-10 bg-green-600 text-white px-3 py-1 rounded-md text-sm">
