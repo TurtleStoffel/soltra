@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, useParams } from "react-router-dom";
 import { Header } from "./components/Header";
 import "./index.css";
 import { ProductsPanel } from "./products/products-panel";
@@ -10,6 +10,11 @@ function Home() {
   return <div className="p-8">Home</div>;
 }
 
+function TaskScreenWrapper() {
+  const { taskId } = useParams<{ taskId: string }>();
+  return <TaskScreen taskId={taskId} />;
+}
+
 export function App() {
   return (
     <HashRouter>
@@ -19,6 +24,7 @@ export function App() {
         <Route path="/configuration" element={<ConfigurationPanel />} />
         <Route path="/task-graph" element={<TaskGraph />} />
         <Route path="/task" element={<TaskScreen />} />
+        <Route path="/task/:taskId" element={<TaskScreenWrapper />} />
         <Route path="/products" element={<ProductsPanel />} />
       </Routes>
     </HashRouter>
