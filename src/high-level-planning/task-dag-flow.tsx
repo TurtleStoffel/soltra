@@ -131,6 +131,8 @@ export default function TaskDAGFlow({
     const [isCreatingTask, setIsCreatingTask] = useState(false);
     const [isCreatingWorkstream, setIsCreatingWorkstream] = useState(false);
     const [showWorkstreamMenu, setShowWorkstreamMenu] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
     const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
     const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
     const connectionStart = useRef<{
@@ -139,8 +141,8 @@ export default function TaskDAGFlow({
         position: { x: number; y: number };
     } | null>(null);
 
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
     // Track previous workstream positions to detect movement
     const prevWorkstreamPositions = useRef<
@@ -468,6 +470,36 @@ export default function TaskDAGFlow({
         }
     }, [navigate]);
 
+    // Handle search for tasks
+    const handleSearch = useCallback((query: string) => {
+        setSearchQuery(query);
+
+        if (!query.trim() || !reactFlowInstance.current) {
+            setHighlightedNodeId(null);
+            return;
+        }
+
+        // Find matching task nodes (case-insensitive)
+        const taskNodes = nodes.filter(node => node.type === 'taskNode');
+        const matchingNode = taskNodes.find(node => {
+            const task = tasks.find(t => t.uuid === node.id);
+            return task?.title.toLowerCase().includes(query.toLowerCase());
+        });
+
+        if (matchingNode) {
+            setHighlightedNodeId(matchingNode.id);
+
+            // Navigate to the node with smooth animation
+            reactFlowInstance.current.setCenter(
+                matchingNode.position.x + 100, // offset by half node width
+                matchingNode.position.y + 50,  // offset by half node height
+                { zoom: 1.5, duration: 800 }
+            );
+        } else {
+            setHighlightedNodeId(null);
+        }
+    }, [nodes, tasks]);
+
     useEffect(() => {
         loadAndValidateWorkstreams().then(setWorkstreams);
     }, []);
@@ -475,7 +507,19 @@ export default function TaskDAGFlow({
     // Update nodes and edges when tasks or workstreams change
     useEffect(() => {
         convertTasksToDAG(tasks, workstreams, handleAsyncToggle).then(({ nodes: newNodes, edges: newEdges }) => {
-            setNodes(newNodes);
+            // Apply highlighting to matched node
+            const nodesWithHighlight = newNodes.map(node => ({
+                ...node,
+                style: {
+                    ...node.style,
+                    ...(node.id === highlightedNodeId ? {
+                        boxShadow: '0 0 0 3px #3b82f6',
+                        transition: 'all 0.3s ease-in-out',
+                    } : {}),
+                },
+            }));
+
+            setNodes(nodesWithHighlight);
             setEdges(newEdges);
 
             // Initialize workstream positions
@@ -486,7 +530,7 @@ export default function TaskDAGFlow({
                 }
             });
         });
-    }, [tasks, workstreams, setNodes, setEdges]);
+    }, [tasks, workstreams, highlightedNodeId, setNodes, setEdges]);
 
     // Show workstream selection menu
     const handleShowWorkstreamMenu = useCallback(() => {
@@ -715,6 +759,17 @@ export default function TaskDAGFlow({
             style={{ width, height }}
             className="bg-slate-800 rounded-lg relative"
         >
+            {/* Search Bar */}
+            <div className="absolute top-2 right-2 z-10">
+                <input
+                    type="text"
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-md text-sm focus:outline-none focus:border-blue-400 w-64"
+                />
+            </div>
+
             {connectionInProgress && (
                 <div className="absolute top-2 left-2 z-10 bg-green-600 text-white px-3 py-1 rounded-md text-sm">
                     Drawing connection...
