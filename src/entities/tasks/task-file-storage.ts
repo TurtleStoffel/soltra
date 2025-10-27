@@ -68,7 +68,7 @@ export async function loadTasks(): Promise<Task[]> {
 
 export async function addTask(task: Task): Promise<void> {
     const tasks = await loadTasks();
-    tasks.push(task);
+    tasks.unshift(task);
     await storeTasks(tasks);
 }
 
