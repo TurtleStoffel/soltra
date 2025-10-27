@@ -7,6 +7,14 @@
 
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { registerWorktreeCleanupCallback } from "./task-execution/task-execution-service";
+import { registerWorkstreamTaskCleanupCallback } from "./entities/workstreams/workstream-hooks";
+
+// Register task status change callbacks
+registerWorktreeCleanupCallback();
+
+// Register task deletion callbacks
+registerWorkstreamTaskCleanupCallback();
 
 function start() {
   const root = createRoot(document.getElementById("root")!);
