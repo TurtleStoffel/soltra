@@ -62,32 +62,6 @@ export async function loadGlobalOrder(): Promise<OrderItem[] | null> {
 export async function storeGlobalOrder(order: OrderItem[]): Promise<void> {
     await writeFile(
         DataFileName.GLOBAL_ORDER,
-        JSON.stringify({ order }, null, 2),
+        JSON.stringify({ order }, null, 2)
     );
 }
-
-/**
- * Initialize global order from existing tasks and workstreams.
- * This is used when there's no saved order yet (first time setup).
- *
- * By default, workstreams come first, then tasks (matching old behavior).
- */
-export function initializeGlobalOrder(
-    workstreamUuids: string[],
-    taskUuids: string[],
-): OrderItem[] {
-    const order: OrderItem[] = [];
-
-    // Add all workstreams first
-    workstreamUuids.forEach((uuid) => {
-        order.push({ type: "workstream", uuid });
-    });
-
-    // Add all tasks
-    taskUuids.forEach((uuid) => {
-        order.push({ type: "task", uuid });
-    });
-
-    return order;
-}
-
