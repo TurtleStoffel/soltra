@@ -16,6 +16,7 @@ export const DataFileName = {
     TASK_INBOX: "task-inbox.json",
     PRODUCT: "products.json",
     WORKSTREAM: "workstreams.json",
+    GLOBAL_ORDER: "global-order.json",
 } as const;
 export type DataFileName = (typeof DataFileName)[keyof typeof DataFileName];
 

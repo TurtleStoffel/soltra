@@ -4,11 +4,13 @@ import type { Task, TaskStatus } from "src/entities/tasks/types";
 import type { Workstream } from "src/entities/workstreams/types";
 import { calculateDAGPositions } from "./dag-positioning";
 import type { TaskNodeData } from "./dag-task-card";
+import type { OrderItem } from "./global-order-storage";
 
 export async function convertTasksToDAG(
     tasks: Task[],
     workstreams: Workstream[],
     onAsyncToggle: (taskId: string, newValue: boolean) => void,
+    globalOrder: OrderItem[],
 ): Promise<{ nodes: Node[]; edges: Edge[] }> {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
@@ -86,10 +88,10 @@ export async function convertTasksToDAG(
     const WORKSTREAM_VERTICAL_SPACING = 150;
     const WORKSTREAM_PADDING = 80;
 
-    // Position workstream tasks
-    workstreams.forEach((ws) => {
+    // Function to position a workstream
+    const positionWorkstream = (ws: Workstream) => {
         const wsTasks = workstreamTasks.get(ws.uuid) || [];
-        if (wsTasks.length === 0) return;
+        if (wsTasks.length === 0) return 0; // Return 0 height if no tasks
 
         const workstreamX = 50;
         const workstreamY = currentY;
@@ -167,41 +169,51 @@ export async function convertTasksToDAG(
         });
 
         currentY += wsHeight + WORKSTREAM_VERTICAL_SPACING;
-    });
+        return wsHeight + WORKSTREAM_VERTICAL_SPACING;
+    };
 
-    // Position non-workstream tasks below all workstreams
-    if (nonWorkstreamTasks.length > 0) {
-        const nonWsEdges = edges
-            .filter(
-                (e) =>
-                    !taskToWorkstream.has(e.source) &&
-                    !taskToWorkstream.has(e.target),
-            )
-            .map((e) => ({ source: e.source, target: e.target }));
+    // Function to position a standalone task
+    const positionTask = (taskId: string) => {
+        const nodeData = nonWorkstreamTasks.find(n => n.id === taskId);
+        if (!nodeData) return 0; // Task not found or is part of a workstream
 
-        const nonWsPositions = calculateDAGPositions(
-            nonWorkstreamTasks,
-            nonWsEdges,
-        );
+        // For standalone tasks, just position them simply
+        const taskX = 100;
+        const taskY = currentY;
+        const taskHeight = 100;
 
-        nonWorkstreamTasks.forEach((nodeData) => {
-            const pos = nonWsPositions.get(nodeData.id)!;
-            nodes.push({
-                id: nodeData.id,
-                type: "taskNode",
-                position: { x: pos.x + 100, y: pos.y + currentY },
-                data: {
-                    label: nodeData.label,
-                    taskId: nodeData.id,
-                    status: nodeData.status,
-                    onAsyncToggle,
-                } as TaskNodeData,
-                style: {
-                    transition: "all 0.3s ease-in-out",
-                },
-            });
+        nodes.push({
+            id: nodeData.id,
+            type: "taskNode",
+            position: { x: taskX, y: taskY },
+            data: {
+                label: nodeData.label,
+                taskId: nodeData.id,
+                status: nodeData.status,
+                onAsyncToggle,
+            } as TaskNodeData,
+            style: {
+                transition: "all 0.3s ease-in-out",
+            },
         });
-    }
+
+        currentY += taskHeight + 50; // 50px spacing between standalone tasks
+        return taskHeight + 50;
+    };
+
+    // Position items according to global order
+    const workstreamMap = new Map(workstreams.map(ws => [ws.uuid, ws]));
+
+    globalOrder.forEach((item) => {
+        if (item.type === "workstream") {
+            const ws = workstreamMap.get(item.uuid);
+            if (ws) {
+                positionWorkstream(ws);
+            }
+        } else if (item.type === "task") {
+            positionTask(item.uuid);
+        }
+    });
 
     return { nodes, edges };
 }

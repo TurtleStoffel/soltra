@@ -1,7 +1,7 @@
 import { createWorktreeName } from "./task-execution-logic";
 import { getTaskExecutionContext } from "./task-execution-context-storage";
 import { deleteWorktree } from "./task-execution-api";
-import { addTaskStatusChangeCallback } from "src/entities/tasks/task-service";
+import { addTaskStatusChangeCallback } from "src/entities/tasks/task-hooks";
 import type { Task, TaskStatus } from "src/entities/tasks/types";
 
 export function registerWorktreeCleanupCallback() {

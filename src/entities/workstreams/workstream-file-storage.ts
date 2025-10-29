@@ -57,6 +57,7 @@ import {
     DataFileName,
 } from "src/persistence/file-system-handles";
 import type { Workstream, WorkstreamDependency } from "./types";
+import { triggerWorkstreamCreateCallbacks } from "./workstream-hooks";
 
 export async function loadWorkstreams(): Promise<Workstream[]> {
     const text = await readFile(DataFileName.WORKSTREAM);
@@ -141,5 +142,6 @@ export async function createWorkstream(
     };
 
     await addWorkstream(newWorkstream);
+    await triggerWorkstreamCreateCallbacks(newWorkstream);
     return newWorkstream;
 }

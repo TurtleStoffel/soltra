@@ -1,0 +1,180 @@
+import {
+    loadGlobalOrder,
+    storeGlobalOrder,
+    type OrderItem,
+} from "./global-order-storage";
+import { loadTasks } from "src/entities/tasks/task-file-storage";
+import { loadWorkstreams } from "src/entities/workstreams/workstream-file-storage";
+
+/**
+ * Get the global order, initializing if necessary.
+ * This is the main function to use when you need the global order.
+ *
+ * Note: Does not sync - assumes hooks keep the order up to date.
+ * Use addToGlobalOrder/removeFromGlobalOrder for updates.
+ *
+ * @returns The global order (initialized if needed)
+ */
+export async function getGlobalOrder(): Promise<OrderItem[]> {
+    let order = await loadGlobalOrder();
+
+    if (order === null) {
+        // No order exists - initialize with current tasks and workstreams
+        const tasks = await loadTasks();
+        const workstreams = await loadWorkstreams();
+
+        const workstreamUuids = workstreams.map((ws) => ws.uuid);
+        const taskUuids = tasks.map((t) => t.uuid);
+
+        order = initializeGlobalOrder(workstreamUuids, taskUuids);
+        await storeGlobalOrder(order);
+    }
+
+    return order;
+}
+
+/**
+ * Update the global order and persist to storage.
+ * This should be called after manual reordering (e.g., drag and drop).
+ *
+ * @param order - The new order to save
+ */
+export async function updateGlobalOrder(order: OrderItem[]): Promise<void> {
+    await storeGlobalOrder(order);
+}
+
+/**
+ * Add a new item to the global order.
+ * The item is added at the top of the order (beginning of the list).
+ *
+ * @param type - The type of item to add ("task" or "workstream")
+ * @param uuid - The UUID of the item to add
+ */
+export async function addToGlobalOrder(
+    type: "task" | "workstream",
+    uuid: string
+): Promise<void> {
+    let order = await loadGlobalOrder();
+
+    // If no order exists, initialize with just this item
+    if (order === null) {
+        order = [{ type, uuid }];
+        await storeGlobalOrder(order);
+        return;
+    }
+
+    // Check if item already exists
+    const exists = order.some(
+        (item) => item.type === type && item.uuid === uuid
+    );
+    if (exists) {
+        // Item already in order, nothing to do
+        return;
+    }
+
+    // Add to the top (beginning)
+    order.unshift({ type, uuid });
+    await storeGlobalOrder(order);
+}
+
+/**
+ * Remove an item from the global order.
+ *
+ * @param type - The type of item to remove ("task" or "workstream")
+ * @param uuid - The UUID of the item to remove
+ */
+export async function removeFromGlobalOrder(
+    type: "task" | "workstream",
+    uuid: string
+): Promise<void> {
+    const order = await loadGlobalOrder();
+
+    if (order === null) {
+        // No order exists, nothing to remove
+        return;
+    }
+
+    // Filter out the item
+    const newOrder = order.filter(
+        (item) => !(item.type === type && item.uuid === uuid)
+    );
+
+    // Only save if something changed
+    if (newOrder.length !== order.length) {
+        await storeGlobalOrder(newOrder);
+    }
+}
+
+/**
+ * Add a new item to the global order after a specific item.
+ * Useful when creating a task at a specific position in the DAG.
+ *
+ * @param type - The type of item to add ("task" or "workstream")
+ * @param uuid - The UUID of the item to add
+ * @param afterType - The type of the item to insert after
+ * @param afterUuid - The UUID of the item to insert after
+ */
+export async function addToGlobalOrderAfter(
+    type: "task" | "workstream",
+    uuid: string,
+    afterType: "task" | "workstream",
+    afterUuid: string
+): Promise<void> {
+    let order = await loadGlobalOrder();
+
+    // If no order exists, initialize with just this item
+    if (order === null) {
+        order = [{ type, uuid }];
+        await storeGlobalOrder(order);
+        return;
+    }
+
+    // Check if item already exists
+    const exists = order.some(
+        (item) => item.type === type && item.uuid === uuid
+    );
+    if (exists) {
+        // Item already in order, nothing to do
+        return;
+    }
+
+    // Find the index of the item to insert after
+    const afterIndex = order.findIndex(
+        (item) => item.type === afterType && item.uuid === afterUuid
+    );
+
+    if (afterIndex === -1) {
+        // Item to insert after not found, add to top
+        order.unshift({ type, uuid });
+    } else {
+        // Insert after the found item
+        order.splice(afterIndex + 1, 0, { type, uuid });
+    }
+
+    await storeGlobalOrder(order);
+}
+
+/**
+ * Initialize global order from existing tasks and workstreams.
+ * This is used when there's no saved order yet (first time setup).
+ *
+ * By default, workstreams come first, then tasks (matching old behavior).
+ */
+function initializeGlobalOrder(
+    workstreamUuids: string[],
+    taskUuids: string[]
+): OrderItem[] {
+    const order: OrderItem[] = [];
+
+    // Add all workstreams first
+    workstreamUuids.forEach((uuid) => {
+        order.push({ type: "workstream", uuid });
+    });
+
+    // Add all tasks
+    taskUuids.forEach((uuid) => {
+        order.push({ type: "task", uuid });
+    });
+
+    return order;
+}
