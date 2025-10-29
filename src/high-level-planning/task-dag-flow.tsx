@@ -37,6 +37,7 @@ import { getTaskExecutionContext, setTaskExecutionContext } from "src/task-execu
 import { executeTask } from "src/task-execution/task-execution-logic";
 import { TaskNode, type TaskNodeData } from "./dag-task-card";
 import { TaskSearchBar } from "./task-search-bar";
+import { loadGlobalOrder, storeGlobalOrder, type OrderItem, type OrderItemType } from "./global-order-storage";
 
 function WorkstreamGroupNode({ data }: { data: { label: string } }) {
     return (
@@ -120,6 +121,7 @@ export default function TaskDAGFlow({
 }: TaskDAGFlowProps) {
     const navigate = useNavigate();
     const [workstreams, setWorkstreams] = useState<Workstream[]>([]);
+    const [globalOrder, setGlobalOrder] = useState<OrderItem[]>([]);
     const [connectionInProgress, setConnectionInProgress] = useState(false);
     const [contextMenu, setContextMenu] = useState<{
         show: boolean;
@@ -205,66 +207,45 @@ export default function TaskDAGFlow({
     // Handle when a node drag ends
     const onNodeDragStop = useCallback(
         async (_event: any, node: Node) => {
-            if (node.id.startsWith("workstream-")) {
-                // Get all workstream nodes and sort by Y position
-                const workstreamNodes = nodes.filter((n) =>
-                    n.id.startsWith("workstream-"),
-                );
-                const sortedByY = workstreamNodes
-                    .map((n) => ({
+            // Collect all nodes (both workstreams and standalone tasks) with their Y positions
+            const allItems: Array<{ type: OrderItemType; uuid: string; y: number }> = [];
+
+            nodes.forEach((n) => {
+                if (n.id.startsWith("workstream-")) {
+                    allItems.push({
+                        type: "workstream",
                         uuid: n.id.replace("workstream-", ""),
                         y: n.position.y,
-                    }))
-                    .sort((a, b) => a.y - b.y);
-
-                // Reorder workstreams array to match Y position order
-                const reorderedWorkstreams = sortedByY
-                    .map((sorted) =>
-                        workstreams.find((ws) => ws.uuid === sorted.uuid),
-                    )
-                    .filter((ws): ws is Workstream => ws !== undefined);
-
-                storeWorkstreams(reorderedWorkstreams);
-            } else {
-                // Task node was dragged - reorder tasks by Y position and re-layout
-                const taskNodes = nodes.filter((n) => n.type === "taskNode");
-                const sortedByY = taskNodes
-                    .map((n) => ({
-                        uuid: n.id,
-                        y: n.position.y,
-                    }))
-                    .sort((a, b) => a.y - b.y);
-
-                // Reorder tasks array to match Y position order
-                const reorderedTasks = sortedByY
-                    .map((sorted) => tasks.find((t) => t.uuid === sorted.uuid))
-                    .filter((t): t is Task => t !== undefined);
-
-                // Save the reordered tasks
-                storeTasks(reorderedTasks);
-
-                // Re-run the DAG positioning with the reordered tasks
-                const { nodes: newNodes, edges: newEdges } = await convertTasksToDAG(
-                    reorderedTasks,
-                    workstreams,
-                    handleAsyncToggle,
-                );
-                setNodes(newNodes);
-                setEdges(newEdges);
-
-                // Update workstream positions
-                prevWorkstreamPositions.current.clear();
-                newNodes.forEach((node) => {
-                    if (node.id.startsWith("workstream-")) {
-                        prevWorkstreamPositions.current.set(
-                            node.id,
-                            node.position,
-                        );
+                    });
+                } else if (n.type === "taskNode") {
+                    // Only include standalone tasks (not part of a workstream)
+                    const nodeData = n.data as TaskNodeData;
+                    if (!nodeData.workstreamId) {
+                        allItems.push({
+                            type: "task",
+                            uuid: n.id,
+                            y: n.position.y,
+                        });
                     }
-                });
-            }
+                }
+            });
+
+            // Sort by Y position
+            allItems.sort((a, b) => a.y - b.y);
+
+            // Create new global order
+            const newGlobalOrder: OrderItem[] = allItems.map(item => ({
+                type: item.type,
+                uuid: item.uuid,
+            }));
+
+            // Store the new global order
+            await storeGlobalOrder(newGlobalOrder);
+            setGlobalOrder(newGlobalOrder);
+
+            // The UI will update automatically via the useEffect that watches globalOrder
         },
-        [nodes, workstreams, tasks, setNodes, setEdges],
+        [nodes, setGlobalOrder],
     );
 
     // Handle new connections
@@ -476,12 +457,24 @@ export default function TaskDAGFlow({
     }, []);
 
     useEffect(() => {
-        loadAndValidateWorkstreams().then(setWorkstreams);
-    }, []);
+        const initializeData = async () => {
+            const loadedWorkstreams = await loadAndValidateWorkstreams();
+            setWorkstreams(loadedWorkstreams);
+
+            // Load global order (automatically initializes and syncs if needed)
+            const workstreamUuids = loadedWorkstreams.map(ws => ws.uuid);
+            const taskUuids = tasks.map(t => t.uuid);
+            const order = await loadGlobalOrder(workstreamUuids, taskUuids);
+
+            setGlobalOrder(order);
+        };
+
+        initializeData();
+    }, [tasks]);
 
     // Update nodes and edges when tasks or workstreams change
     useEffect(() => {
-        convertTasksToDAG(tasks, workstreams, handleAsyncToggle).then(({ nodes: newNodes, edges: newEdges }) => {
+        convertTasksToDAG(tasks, workstreams, handleAsyncToggle, globalOrder).then(({ nodes: newNodes, edges: newEdges }) => {
             // Apply highlighting to matched node
             const nodesWithHighlight = newNodes.map(node => ({
                 ...node,
@@ -505,7 +498,7 @@ export default function TaskDAGFlow({
                 }
             });
         });
-    }, [tasks, workstreams, highlightedNodeId, setNodes, setEdges]);
+    }, [tasks, workstreams, globalOrder, highlightedNodeId, setNodes, setEdges]);
 
     // Show workstream selection menu
     const handleShowWorkstreamMenu = useCallback(() => {
