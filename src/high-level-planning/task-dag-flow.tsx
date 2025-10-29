@@ -23,7 +23,10 @@ import {
 import type { TaskStatus, Task } from "src/entities/tasks/types";
 import { createTask, storeTasks } from "src/entities/tasks/task-file-storage";
 import { removeTask, updateTask } from "src/entities/tasks/task-service";
-import { storeWorkstreams, createWorkstream } from "src/entities/workstreams/workstream-file-storage";
+import {
+    storeWorkstreams,
+    createWorkstream,
+} from "src/entities/workstreams/workstream-file-storage";
 import {
     addTaskToWorkstream,
     removeDependency,
@@ -33,11 +36,19 @@ import { connectTasks } from "src/entities/workstreams/workstream-task-service";
 import type { Workstream } from "src/entities/workstreams/types";
 import { centerOnTopmostNode } from "./camera-utils";
 import { convertTasksToDAG } from "./dag-conversion";
-import { getTaskExecutionContext, setTaskExecutionContext } from "src/task-execution/task-execution-context-storage";
+import {
+    getTaskExecutionContext,
+    setTaskExecutionContext,
+} from "src/task-execution/task-execution-context-storage";
 import { executeTask } from "src/task-execution/task-execution-logic";
 import { TaskNode, type TaskNodeData } from "./dag-task-card";
 import { TaskSearchBar } from "./task-search-bar";
-import { getGlobalOrder, updateGlobalOrder } from "./global-order-service";
+import {
+    getGlobalOrder,
+    updateGlobalOrder,
+    addToGlobalOrderAfter,
+    removeFromGlobalOrder,
+} from "./global-order-service";
 import type { OrderItem, OrderItemType } from "./global-order-storage";
 
 function WorkstreamGroupNode({ data }: { data: { label: string } }) {
@@ -55,7 +66,13 @@ function WorkstreamGroupNode({ data }: { data: { label: string } }) {
     );
 }
 
-function ExecuteTaskButton({ taskId, onExecute }: { taskId: string; onExecute: () => void }) {
+function ExecuteTaskButton({
+    taskId,
+    onExecute,
+}: {
+    taskId: string;
+    onExecute: () => void;
+}) {
     const [hasAsync, setHasAsync] = useState(false);
 
     useEffect(() => {
@@ -86,29 +103,12 @@ const nodeTypes = {
     group: WorkstreamGroupNode,
 };
 
-// Reorder and persist tasks based on their Y position
-function reorderTasksByPosition(currentNodes: Node[], currentTasks: Task[]) {
-    const taskNodes = currentNodes.filter((n) => n.type === "taskNode");
-    const reorderedNodes = taskNodes.sort(
-        (a, b) => a.position.y - b.position.y,
-    );
-
-    // Reorder tasks array to match Y position order
-    const reorderedTasks = reorderedNodes
-        .map((sorted) => currentTasks.find((t) => t.uuid === sorted.id))
-        .filter((t): t is Task => t !== undefined);
-
-    return { reorderedTasks, reorderedNodes };
-}
-
-// Handle node clicks for navigation (moved inside component to access navigate hook)
-
 export interface TaskDAGFlowProps {
     tasks: Task[];
     width: number;
     height: number;
     onConnectionsChange?: (
-        connections: { source: string; target: string }[],
+        connections: { source: string; target: string }[]
     ) => void;
     onTaskCreated: () => void;
 }
@@ -135,7 +135,9 @@ export default function TaskDAGFlow({
     const [isCreatingTask, setIsCreatingTask] = useState(false);
     const [isCreatingWorkstream, setIsCreatingWorkstream] = useState(false);
     const [showWorkstreamMenu, setShowWorkstreamMenu] = useState(false);
-    const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
+    const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(
+        null
+    );
     const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
     const reactFlowWrapper = useRef<HTMLDivElement | null>(null);
     const connectionStart = useRef<{
@@ -190,26 +192,30 @@ export default function TaskDAGFlow({
                                         };
                                     }
                                     return node;
-                                }),
+                                })
                             );
                         }
                     }
 
                     prevWorkstreamPositions.current.set(
                         workstreamId,
-                        newPosition,
+                        newPosition
                     );
                 }
             });
         },
-        [onNodesChange, setNodes],
+        [onNodesChange, setNodes]
     );
 
     // Handle when a node drag ends
     const onNodeDragStop = useCallback(
         async (_event: any, node: Node) => {
             // Collect all nodes (both workstreams and standalone tasks) with their Y positions
-            const allItems: Array<{ type: OrderItemType; uuid: string; y: number }> = [];
+            const allItems: Array<{
+                type: OrderItemType;
+                uuid: string;
+                y: number;
+            }> = [];
 
             nodes.forEach((n) => {
                 if (n.id.startsWith("workstream-")) {
@@ -235,7 +241,7 @@ export default function TaskDAGFlow({
             allItems.sort((a, b) => a.y - b.y);
 
             // Create new global order
-            const newGlobalOrder: OrderItem[] = allItems.map(item => ({
+            const newGlobalOrder: OrderItem[] = allItems.map((item) => ({
                 type: item.type,
                 uuid: item.uuid,
             }));
@@ -246,7 +252,7 @@ export default function TaskDAGFlow({
 
             // The UI will update automatically via the useEffect that watches globalOrder
         },
-        [nodes, setGlobalOrder],
+        [nodes, setGlobalOrder]
     );
 
     // Handle new connections
@@ -266,92 +272,122 @@ export default function TaskDAGFlow({
             // Reload workstreams to update the UI
             setWorkstreams(await loadAndValidateWorkstreams());
         },
-        [tasks],
+        [tasks]
     );
 
     // Handle connection start
-    const onConnectStart = useCallback((_event: any, params: { nodeId: string | null; handleType: "source" | "target" | null }) => {
-        setConnectionInProgress(true);
-        if (params.nodeId && params.handleType) {
-            connectionStart.current = {
-                nodeId: params.nodeId,
-                handleType: params.handleType,
-            };
-        }
-    }, []);
+    const onConnectStart = useCallback(
+        (
+            _event: any,
+            params: {
+                nodeId: string | null;
+                handleType: "source" | "target" | null;
+            }
+        ) => {
+            setConnectionInProgress(true);
+            if (params.nodeId && params.handleType) {
+                connectionStart.current = {
+                    nodeId: params.nodeId,
+                    handleType: params.handleType,
+                };
+            }
+        },
+        []
+    );
 
     // Handle connection end
-    const onConnectEnd = useCallback(async (event: any) => {
-        setConnectionInProgress(false);
+    const onConnectEnd = useCallback(
+        async (event: any) => {
+            setConnectionInProgress(false);
 
-        // Check if we have connection info and didn't connect to a valid target
-        if (connectionStart.current && reactFlowInstance.current) {
-            const position = reactFlowInstance.current.screenToFlowPosition({
-                x: event.clientX,
-                y: event.clientY,
-            });
-
-            const connectionInfo = connectionStart.current;
-            connectionStart.current = null;
-
-            // Immediately prompt for task title
-            const taskTitle = prompt("Enter task title:");
-            if (!taskTitle || taskTitle.trim() === "") {
-                return;
-            }
-
-            setIsCreatingTask(true);
-
-            try {
-                const newTask = await createTask(taskTitle.trim());
-
-                // Add the new task as a node at the drop position
-                const newNode: Node = {
-                    id: newTask.uuid,
-                    type: "taskNode",
-                    position: { x: position.x, y: position.y },
-                    data: {
-                        label: newTask.title,
-                        taskId: newTask.uuid,
-                        status: newTask.status,
-                    } as TaskNodeData,
-                    style: {
-                        transition: "all 0.3s ease-in-out",
-                    },
-                };
-
-                // Reorder all tasks based on Y position, including the new task
-                const { reorderedTasks } = reorderTasksByPosition(
-                    [...nodes, newNode],
-                    [...tasks, newTask],
+            // Check if we have connection info and didn't connect to a valid target
+            if (connectionStart.current && reactFlowInstance.current) {
+                const position = reactFlowInstance.current.screenToFlowPosition(
+                    {
+                        x: event.clientX,
+                        y: event.clientY,
+                    }
                 );
-                await storeTasks(reorderedTasks);
 
-                // Create the connection based on which handle was used
-                // source handle (right) = original task blocks new task
-                // target handle (left) = new task blocks original task
-                const sourceId = connectionInfo.handleType === "source"
-                    ? connectionInfo.nodeId
-                    : newTask.uuid;
-                const targetId = connectionInfo.handleType === "source"
-                    ? newTask.uuid
-                    : connectionInfo.nodeId;
+                const connectionInfo = connectionStart.current;
+                connectionStart.current = null;
 
-                await connectTasks(sourceId, targetId, [...tasks, newTask], "blocks");
+                // Immediately prompt for task title
+                const taskTitle = prompt("Enter task title:");
+                if (!taskTitle || taskTitle.trim() === "") {
+                    return;
+                }
 
-                // Reload workstreams to update the UI
-                setWorkstreams(await loadAndValidateWorkstreams());
+                setIsCreatingTask(true);
 
-                // Notify parent component that a task was created
-                onTaskCreated();
-            } catch (error) {
-                console.error("Failed to create connected task:", error);
-                alert("Failed to create connected task. Please try again.");
-            } finally {
-                setIsCreatingTask(false);
+                try {
+                    const newTask = await createTask(taskTitle.trim());
+
+                    // The hook will add the task to the top of global order
+                    // We need to move it to the correct position (after the connected node)
+                    // First, remove it from wherever the hook put it
+                    await removeFromGlobalOrder("task", newTask.uuid);
+
+                    // Then add it after the connected node
+                    const connectedNodeId = connectionInfo.nodeId;
+                    const connectedNode = nodes.find(
+                        (n) => n.id === connectedNodeId
+                    );
+
+                    if (connectedNode) {
+                        if (connectedNode.id.startsWith("workstream-")) {
+                            // Connected to a workstream
+                            await addToGlobalOrderAfter(
+                                "task",
+                                newTask.uuid,
+                                "workstream",
+                                connectedNode.id.replace("workstream-", "")
+                            );
+                        } else {
+                            // Connected to another task
+                            await addToGlobalOrderAfter(
+                                "task",
+                                newTask.uuid,
+                                "task",
+                                connectedNode.id
+                            );
+                        }
+                    }
+
+                    // Create the connection based on which handle was used
+                    // source handle (right) = original task blocks new task
+                    // target handle (left) = new task blocks original task
+                    const sourceId =
+                        connectionInfo.handleType === "source"
+                            ? connectionInfo.nodeId
+                            : newTask.uuid;
+                    const targetId =
+                        connectionInfo.handleType === "source"
+                            ? newTask.uuid
+                            : connectionInfo.nodeId;
+
+                    await connectTasks(
+                        sourceId,
+                        targetId,
+                        [...tasks, newTask],
+                        "blocks"
+                    );
+
+                    // Reload workstreams to update the UI
+                    setWorkstreams(await loadAndValidateWorkstreams());
+
+                    // Notify parent component that a task was created
+                    onTaskCreated();
+                } catch (error) {
+                    console.error("Failed to create connected task:", error);
+                    alert("Failed to create connected task. Please try again.");
+                } finally {
+                    setIsCreatingTask(false);
+                }
             }
-        }
-    }, [nodes, tasks, onTaskCreated]);
+        },
+        [nodes, tasks, onTaskCreated]
+    );
 
     // Handle edge deletion
     const onEdgesDelete = useCallback(
@@ -365,8 +401,8 @@ export default function TaskDAGFlow({
                     ws.dependencies.some(
                         (dep) =>
                             dep.fromTaskUuid === sourceId &&
-                            dep.toTaskUuid === targetId,
-                    ),
+                            dep.toTaskUuid === targetId
+                    )
                 );
 
                 for (const workstream of relevantWorkstreams) {
@@ -374,12 +410,16 @@ export default function TaskDAGFlow({
                         await removeDependency(
                             workstream.uuid,
                             sourceId,
-                            targetId,
+                            targetId
                         );
                     } catch (error) {
                         console.error("Failed to remove dependency:", error);
                         alert(
-                            `Failed to delete connection: ${error instanceof Error ? error.message : "Unknown error"}`,
+                            `Failed to delete connection: ${
+                                error instanceof Error
+                                    ? error.message
+                                    : "Unknown error"
+                            }`
                         );
                     }
                 }
@@ -388,7 +428,7 @@ export default function TaskDAGFlow({
             // Reload workstreams to update the UI
             setWorkstreams(await loadAndValidateWorkstreams());
         },
-        [workstreams],
+        [workstreams]
     );
 
     // Handle right-click context menu on pane
@@ -431,7 +471,7 @@ export default function TaskDAGFlow({
                 nodeId: node.id,
             });
         },
-        [],
+        []
     );
 
     // Hide context menu on any click
@@ -442,15 +482,18 @@ export default function TaskDAGFlow({
     }, []);
 
     // Handle node clicks for navigation
-    const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-        // Only handle task nodes, not workstream group nodes
-        if (node.type === "taskNode") {
-            const nodeData = node.data as TaskNodeData;
-            if (nodeData.taskId) {
-                navigate(`/task/${nodeData.taskId}`);
+    const handleNodeClick = useCallback(
+        (_event: React.MouseEvent, node: Node) => {
+            // Only handle task nodes, not workstream group nodes
+            if (node.type === "taskNode") {
+                const nodeData = node.data as TaskNodeData;
+                if (nodeData.taskId) {
+                    navigate(`/task/${nodeData.taskId}`);
+                }
             }
-        }
-    }, [navigate]);
+        },
+        [navigate]
+    );
 
     // Handle highlight changes from search
     const handleHighlightChange = useCallback((nodeId: string | null) => {
@@ -473,16 +516,23 @@ export default function TaskDAGFlow({
 
     // Update nodes and edges when tasks or workstreams change
     useEffect(() => {
-        convertTasksToDAG(tasks, workstreams, handleAsyncToggle, globalOrder).then(({ nodes: newNodes, edges: newEdges }) => {
+        convertTasksToDAG(
+            tasks,
+            workstreams,
+            handleAsyncToggle,
+            globalOrder
+        ).then(({ nodes: newNodes, edges: newEdges }) => {
             // Apply highlighting to matched node
-            const nodesWithHighlight = newNodes.map(node => ({
+            const nodesWithHighlight = newNodes.map((node) => ({
                 ...node,
                 style: {
                     ...node.style,
-                    ...(node.id === highlightedNodeId ? {
-                        boxShadow: '0 0 0 3px #3b82f6',
-                        transition: 'all 0.3s ease-in-out',
-                    } : {}),
+                    ...(node.id === highlightedNodeId
+                        ? {
+                              boxShadow: "0 0 0 3px #3b82f6",
+                              transition: "all 0.3s ease-in-out",
+                          }
+                        : {}),
                 },
             }));
 
@@ -497,7 +547,14 @@ export default function TaskDAGFlow({
                 }
             });
         });
-    }, [tasks, workstreams, globalOrder, highlightedNodeId, setNodes, setEdges]);
+    }, [
+        tasks,
+        workstreams,
+        globalOrder,
+        highlightedNodeId,
+        setNodes,
+        setEdges,
+    ]);
 
     // Show workstream selection menu
     const handleShowWorkstreamMenu = useCallback(() => {
@@ -515,7 +572,9 @@ export default function TaskDAGFlow({
             } catch (error) {
                 console.error("Failed to add task to workstream:", error);
                 alert(
-                    `Failed to add task to workstream: ${error instanceof Error ? error.message : "Unknown error"}`,
+                    `Failed to add task to workstream: ${
+                        error instanceof Error ? error.message : "Unknown error"
+                    }`
                 );
             } finally {
                 setContextMenu({
@@ -528,7 +587,7 @@ export default function TaskDAGFlow({
                 setShowWorkstreamMenu(false);
             }
         },
-        [contextMenu.nodeId],
+        [contextMenu.nodeId]
     );
 
     // Mark task as done (delete it)
@@ -588,7 +647,7 @@ export default function TaskDAGFlow({
             taskId,
             context.workingDirectory,
             context.context,
-            newValue,
+            newValue
         );
         // Refresh the view to update the node
         onTaskCreated();
@@ -614,7 +673,7 @@ export default function TaskDAGFlow({
             task,
             executionContext.workingDirectory,
             executionContext.context,
-            executionContext.async,
+            executionContext.async
         );
 
         if (!result.success) {
@@ -627,6 +686,7 @@ export default function TaskDAGFlow({
     // Create new task at context menu position
     const handleCreateTask = useCallback(async () => {
         setIsCreatingTask(true);
+        const clickY = contextMenu.y;
         setContextMenu({ show: false, x: 0, y: 0, screenX: 0, screenY: 0 });
 
         try {
@@ -638,28 +698,52 @@ export default function TaskDAGFlow({
 
             const newTask = await createTask(taskTitle.trim());
 
-            // Add the new task as a node at the context menu position
-            const newNode: Node = {
-                id: newTask.uuid,
-                type: "taskNode",
-                position: { x: contextMenu.x, y: contextMenu.y },
-                data: {
-                    label: newTask.title,
-                    taskId: newTask.uuid,
-                    status: newTask.status,
-                } as TaskNodeData,
-                style: {
-                    transition: "all 0.3s ease-in-out",
-                },
-            };
+            // The hook will add the task to the top of global order
+            // We need to move it to the correct position based on Y coordinate
+            await removeFromGlobalOrder("task", newTask.uuid);
 
-            // Reorder all tasks based on Y position, including the new task
-            const { reorderedTasks, reorderedNodes } = reorderTasksByPosition(
-                [...nodes, newNode],
-                [...tasks, newTask],
-            );
-            setNodes(reorderedNodes);
-            await storeTasks(reorderedTasks);
+            // Find the item that should be before this task based on Y position
+            // Consider both workstreams and standalone tasks
+            const allItems: Array<{
+                id: string;
+                y: number;
+                type: "task" | "workstream";
+            }> = [];
+
+            nodes.forEach((node) => {
+                if (node.id.startsWith("workstream-")) {
+                    allItems.push({
+                        id: node.id.replace("workstream-", ""),
+                        y: node.position.y,
+                        type: "workstream",
+                    });
+                } else if (node.type === "taskNode") {
+                    // Only include standalone tasks (not part of a workstream)
+                    const nodeData = node.data as TaskNodeData;
+                    if (!nodeData.workstreamId) {
+                        allItems.push({
+                            id: node.id,
+                            y: node.position.y,
+                            type: "task",
+                        });
+                    }
+                }
+            });
+
+            // Sort by Y position and find the item immediately before the clicked position
+            allItems.sort((a, b) => a.y - b.y);
+            const itemBefore = allItems.filter((item) => item.y < clickY).pop(); // Get the last item before the click position
+
+            if (itemBefore) {
+                // Add after the item before
+                await addToGlobalOrderAfter(
+                    "task",
+                    newTask.uuid,
+                    itemBefore.type,
+                    itemBefore.id
+                );
+            }
+            // If no item before, it stays at the top (where the hook put it originally)
 
             // Notify parent component that a task was created
             onTaskCreated();
@@ -669,7 +753,7 @@ export default function TaskDAGFlow({
         } finally {
             setIsCreatingTask(false);
         }
-    }, [contextMenu.x, contextMenu.y, onTaskCreated, nodes, tasks]);
+    }, [contextMenu.y, onTaskCreated, nodes]);
 
     // Create new workstream
     const handleCreateWorkstream = useCallback(async () => {
@@ -835,7 +919,7 @@ export default function TaskDAGFlow({
                             />
                             {(() => {
                                 const task = tasks.find(
-                                    (t) => t.uuid === contextMenu.nodeId,
+                                    (t) => t.uuid === contextMenu.nodeId
                                 );
                                 const isInProgress =
                                     task?.status === "In Progress";
@@ -854,7 +938,9 @@ export default function TaskDAGFlow({
                                             </button>
                                         ) : (
                                             <button
-                                                onClick={handleMarkTaskAsInProgress}
+                                                onClick={
+                                                    handleMarkTaskAsInProgress
+                                                }
                                                 className="w-full px-4 py-2 text-left text-white hover:bg-slate-600 flex items-center gap-2"
                                             >
                                                 <span className="text-yellow-400">
