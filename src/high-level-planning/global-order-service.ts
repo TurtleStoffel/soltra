@@ -45,7 +45,7 @@ export async function updateGlobalOrder(order: OrderItem[]): Promise<void> {
 
 /**
  * Add a new item to the global order.
- * The item is added at the end of the order by default.
+ * The item is added at the top of the order (beginning of the list).
  *
  * @param type - The type of item to add ("task" or "workstream")
  * @param uuid - The UUID of the item to add
@@ -72,8 +72,8 @@ export async function addToGlobalOrder(
         return;
     }
 
-    // Add to the end
-    order.push({ type, uuid });
+    // Add to the top (beginning)
+    order.unshift({ type, uuid });
     await storeGlobalOrder(order);
 }
 
