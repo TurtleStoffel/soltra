@@ -462,10 +462,8 @@ export default function TaskDAGFlow({
             const loadedWorkstreams = await loadAndValidateWorkstreams();
             setWorkstreams(loadedWorkstreams);
 
-            // Get global order (automatically initializes and syncs if needed)
-            const workstreamUuids = loadedWorkstreams.map(ws => ws.uuid);
-            const taskUuids = tasks.map(t => t.uuid);
-            const order = await getGlobalOrder(workstreamUuids, taskUuids);
+            // Get global order (automatically loads, initializes, and syncs if needed)
+            const order = await getGlobalOrder();
 
             setGlobalOrder(order);
         };

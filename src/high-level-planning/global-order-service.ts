@@ -6,19 +6,24 @@
  */
 
 import { loadGlobalOrder, storeGlobalOrder, initializeGlobalOrder, syncGlobalOrder, type OrderItem } from "./global-order-storage";
+import { loadTasks } from "src/entities/tasks/task-file-storage";
+import { loadWorkstreams } from "src/entities/workstreams/workstream-file-storage";
 
 /**
  * Get the global order, initializing if necessary.
  * This is the main function to use when you need the global order.
+ * Automatically loads current tasks and workstreams to ensure sync.
  *
- * @param workstreamUuids - Array of current workstream UUIDs
- * @param taskUuids - Array of current task UUIDs
  * @returns The global order (initialized and synced if needed)
  */
-export async function getGlobalOrder(
-    workstreamUuids: string[],
-    taskUuids: string[],
-): Promise<OrderItem[]> {
+export async function getGlobalOrder(): Promise<OrderItem[]> {
+    // Load current tasks and workstreams
+    const tasks = await loadTasks();
+    const workstreams = await loadWorkstreams();
+
+    const workstreamUuids = workstreams.map(ws => ws.uuid);
+    const taskUuids = tasks.map(t => t.uuid);
+
     let order = await loadGlobalOrder();
 
     if (order === null) {

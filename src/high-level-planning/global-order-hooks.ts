@@ -8,8 +8,6 @@
 import { addTaskCreateCallback, addTaskDeleteCallback } from "src/entities/tasks/task-hooks";
 import { addWorkstreamCreateCallback, addWorkstreamDeleteCallback } from "src/entities/workstreams/workstream-hooks";
 import { getGlobalOrder } from "./global-order-service";
-import { loadTasks } from "src/entities/tasks/task-file-storage";
-import { loadWorkstreams } from "src/entities/workstreams/workstream-file-storage";
 import type { Task } from "src/entities/tasks/types";
 import type { Workstream } from "src/entities/workstreams/types";
 
@@ -26,14 +24,8 @@ export function registerGlobalOrderHooks(): void {
 
 async function handleTaskCreation(task: Task): Promise<void> {
     try {
-        const tasks = await loadTasks();
-        const workstreams = await loadWorkstreams();
-
-        const workstreamUuids = workstreams.map(ws => ws.uuid);
-        const taskUuids = tasks.map(t => t.uuid);
-
         // Get current order and it will auto-sync to include the new task
-        await getGlobalOrder(workstreamUuids, taskUuids);
+        await getGlobalOrder();
 
         // Order is automatically saved by getGlobalOrder during sync
         console.log(`Global order updated: added task ${task.uuid}`);
@@ -44,14 +36,8 @@ async function handleTaskCreation(task: Task): Promise<void> {
 
 async function handleTaskDeletion(taskId: string): Promise<void> {
     try {
-        const tasks = await loadTasks();
-        const workstreams = await loadWorkstreams();
-
-        const workstreamUuids = workstreams.map(ws => ws.uuid);
-        const taskUuids = tasks.map(t => t.uuid);
-
         // Get current order and it will auto-sync to remove the deleted task
-        await getGlobalOrder(workstreamUuids, taskUuids);
+        await getGlobalOrder();
 
         // Order is automatically saved by getGlobalOrder during sync
         console.log(`Global order updated: removed task ${taskId}`);
@@ -62,14 +48,8 @@ async function handleTaskDeletion(taskId: string): Promise<void> {
 
 async function handleWorkstreamCreation(workstream: Workstream): Promise<void> {
     try {
-        const tasks = await loadTasks();
-        const workstreams = await loadWorkstreams();
-
-        const workstreamUuids = workstreams.map(ws => ws.uuid);
-        const taskUuids = tasks.map(t => t.uuid);
-
         // Get current order and it will auto-sync to include the new workstream
-        await getGlobalOrder(workstreamUuids, taskUuids);
+        await getGlobalOrder();
 
         // Order is automatically saved by getGlobalOrder during sync
         console.log(`Global order updated: added workstream ${workstream.uuid}`);
@@ -80,14 +60,8 @@ async function handleWorkstreamCreation(workstream: Workstream): Promise<void> {
 
 async function handleWorkstreamDeletion(workstreamId: string): Promise<void> {
     try {
-        const tasks = await loadTasks();
-        const workstreams = await loadWorkstreams();
-
-        const workstreamUuids = workstreams.map(ws => ws.uuid);
-        const taskUuids = tasks.map(t => t.uuid);
-
         // Get current order and it will auto-sync to remove the deleted workstream
-        await getGlobalOrder(workstreamUuids, taskUuids);
+        await getGlobalOrder();
 
         // Order is automatically saved by getGlobalOrder during sync
         console.log(`Global order updated: removed workstream ${workstreamId}`);
