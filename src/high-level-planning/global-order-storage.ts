@@ -32,30 +32,28 @@ export interface OrderItem {
 
 /**
  * Load the global order from storage.
- * Returns null if the file doesn't exist or is invalid.
+ * Returns null if the file doesn't exist (first time).
+ * Throws an error if the file exists but is invalid/corrupted.
  * Does NOT automatically initialize or sync - use the service layer for that.
  */
 export async function loadGlobalOrder(): Promise<OrderItem[] | null> {
-    try {
-        const text = await readFile(DataFileName.GLOBAL_ORDER);
-        if (!text) {
-            return null;
-        }
-        const obj = JSON.parse(text);
-
-        if (obj && obj.order && Array.isArray(obj.order)) {
-            return obj.order.map((item: any) => ({
-                type: item.type,
-                uuid: item.uuid,
-            }));
-        }
-
-        return null;
-    } catch (error) {
-        // File doesn't exist or is invalid
-        console.warn("Failed to load global order:", error);
+    const text = await readFile(DataFileName.GLOBAL_ORDER);
+    if (!text) {
+        // File doesn't exist - this is expected on first load
         return null;
     }
+
+    const obj = JSON.parse(text);
+
+    if (obj && obj.order && Array.isArray(obj.order)) {
+        return obj.order.map((item: any) => ({
+            type: item.type,
+            uuid: item.uuid,
+        }));
+    }
+
+    // File exists but has invalid format
+    throw new Error("Invalid global order file format");
 }
 
 /**
