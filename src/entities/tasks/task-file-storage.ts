@@ -47,6 +47,7 @@ import {
     DataFileName,
 } from "src/persistence/file-system-handles";
 import type { Task } from "./types";
+import { triggerTaskCreateCallbacks } from "./task-hooks";
 
 export async function loadTasks(): Promise<Task[]> {
     const text = await readFile(DataFileName.TASK);
@@ -105,5 +106,6 @@ export async function createTask(
     };
 
     await addTask(newTask);
+    await triggerTaskCreateCallbacks(newTask);
     return newTask;
 }
