@@ -7,7 +7,7 @@
 
 import { addTaskCreateCallback, addTaskDeleteCallback } from "src/entities/tasks/task-hooks";
 import { addWorkstreamCreateCallback, addWorkstreamDeleteCallback } from "src/entities/workstreams/workstream-hooks";
-import { getGlobalOrder } from "./global-order-service";
+import { addToGlobalOrder, removeFromGlobalOrder } from "./global-order-service";
 import type { Task } from "src/entities/tasks/types";
 import type { Workstream } from "src/entities/workstreams/types";
 
@@ -24,10 +24,7 @@ export function registerGlobalOrderHooks(): void {
 
 async function handleTaskCreation(task: Task): Promise<void> {
     try {
-        // Get current order and it will auto-sync to include the new task
-        await getGlobalOrder();
-
-        // Order is automatically saved by getGlobalOrder during sync
+        await addToGlobalOrder("task", task.uuid);
         console.log(`Global order updated: added task ${task.uuid}`);
     } catch (error) {
         console.error("Failed to update global order after task creation:", error);
@@ -36,10 +33,7 @@ async function handleTaskCreation(task: Task): Promise<void> {
 
 async function handleTaskDeletion(taskId: string): Promise<void> {
     try {
-        // Get current order and it will auto-sync to remove the deleted task
-        await getGlobalOrder();
-
-        // Order is automatically saved by getGlobalOrder during sync
+        await removeFromGlobalOrder("task", taskId);
         console.log(`Global order updated: removed task ${taskId}`);
     } catch (error) {
         console.error("Failed to update global order after task deletion:", error);
@@ -48,10 +42,7 @@ async function handleTaskDeletion(taskId: string): Promise<void> {
 
 async function handleWorkstreamCreation(workstream: Workstream): Promise<void> {
     try {
-        // Get current order and it will auto-sync to include the new workstream
-        await getGlobalOrder();
-
-        // Order is automatically saved by getGlobalOrder during sync
+        await addToGlobalOrder("workstream", workstream.uuid);
         console.log(`Global order updated: added workstream ${workstream.uuid}`);
     } catch (error) {
         console.error("Failed to update global order after workstream creation:", error);
@@ -60,10 +51,7 @@ async function handleWorkstreamCreation(workstream: Workstream): Promise<void> {
 
 async function handleWorkstreamDeletion(workstreamId: string): Promise<void> {
     try {
-        // Get current order and it will auto-sync to remove the deleted workstream
-        await getGlobalOrder();
-
-        // Order is automatically saved by getGlobalOrder during sync
+        await removeFromGlobalOrder("workstream", workstreamId);
         console.log(`Global order updated: removed workstream ${workstreamId}`);
     } catch (error) {
         console.error("Failed to update global order after workstream deletion:", error);
