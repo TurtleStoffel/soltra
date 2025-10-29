@@ -32,53 +32,29 @@ export interface OrderItem {
 
 /**
  * Load the global order from storage.
- * If the file doesn't exist or is empty, initializes it with the provided tasks and workstreams.
- *
- * @param workstreamUuids - Array of workstream UUIDs (required for initialization)
- * @param taskUuids - Array of task UUIDs (required for initialization)
- * @returns The loaded or initialized global order
+ * Returns null if the file doesn't exist or is invalid.
+ * Does NOT automatically initialize or sync - use the service layer for that.
  */
-export async function loadGlobalOrder(
-    workstreamUuids: string[],
-    taskUuids: string[],
-): Promise<OrderItem[]> {
+export async function loadGlobalOrder(): Promise<OrderItem[] | null> {
     try {
         const text = await readFile(DataFileName.GLOBAL_ORDER);
         if (!text) {
-            // No file exists - initialize with default order
-            const order = initializeGlobalOrder(workstreamUuids, taskUuids);
-            await storeGlobalOrder(order);
-            return order;
+            return null;
         }
         const obj = JSON.parse(text);
 
         if (obj && obj.order && Array.isArray(obj.order)) {
-            const loadedOrder = obj.order.map((item: any) => ({
+            return obj.order.map((item: any) => ({
                 type: item.type,
                 uuid: item.uuid,
             }));
-
-            // Sync with current data (add new items, remove deleted ones)
-            const syncedOrder = syncGlobalOrder(loadedOrder, workstreamUuids, taskUuids);
-
-            // Store the synced order back if it changed
-            if (JSON.stringify(loadedOrder) !== JSON.stringify(syncedOrder)) {
-                await storeGlobalOrder(syncedOrder);
-            }
-
-            return syncedOrder;
         }
 
-        // Invalid format - initialize with default order
-        const order = initializeGlobalOrder(workstreamUuids, taskUuids);
-        await storeGlobalOrder(order);
-        return order;
+        return null;
     } catch (error) {
-        // File doesn't exist yet or is invalid - initialize with default order
-        console.warn("Failed to load global order, initializing with default order:", error);
-        const order = initializeGlobalOrder(workstreamUuids, taskUuids);
-        await storeGlobalOrder(order);
-        return order;
+        // File doesn't exist or is invalid
+        console.warn("Failed to load global order:", error);
+        return null;
     }
 }
 

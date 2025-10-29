@@ -37,7 +37,8 @@ import { getTaskExecutionContext, setTaskExecutionContext } from "src/task-execu
 import { executeTask } from "src/task-execution/task-execution-logic";
 import { TaskNode, type TaskNodeData } from "./dag-task-card";
 import { TaskSearchBar } from "./task-search-bar";
-import { loadGlobalOrder, storeGlobalOrder, type OrderItem, type OrderItemType } from "./global-order-storage";
+import { getGlobalOrder, updateGlobalOrder } from "./global-order-service";
+import type { OrderItem, OrderItemType } from "./global-order-storage";
 
 function WorkstreamGroupNode({ data }: { data: { label: string } }) {
     return (
@@ -240,7 +241,7 @@ export default function TaskDAGFlow({
             }));
 
             // Store the new global order
-            await storeGlobalOrder(newGlobalOrder);
+            await updateGlobalOrder(newGlobalOrder);
             setGlobalOrder(newGlobalOrder);
 
             // The UI will update automatically via the useEffect that watches globalOrder
@@ -461,10 +462,10 @@ export default function TaskDAGFlow({
             const loadedWorkstreams = await loadAndValidateWorkstreams();
             setWorkstreams(loadedWorkstreams);
 
-            // Load global order (automatically initializes and syncs if needed)
+            // Get global order (automatically initializes and syncs if needed)
             const workstreamUuids = loadedWorkstreams.map(ws => ws.uuid);
             const taskUuids = tasks.map(t => t.uuid);
-            const order = await loadGlobalOrder(workstreamUuids, taskUuids);
+            const order = await getGlobalOrder(workstreamUuids, taskUuids);
 
             setGlobalOrder(order);
         };
