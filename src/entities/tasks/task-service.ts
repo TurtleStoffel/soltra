@@ -9,7 +9,7 @@ export async function updateTask(task: Task): Promise<void> {
     const tasks = await loadTasks();
     const index = tasks.findIndex((t) => t.uuid === task.uuid);
     if (index !== -1) {
-        const oldTask = tasks[index];
+        const oldTask = tasks[index]!!;
         const oldStatus = oldTask.status;
         const newStatus = task.status;
 
