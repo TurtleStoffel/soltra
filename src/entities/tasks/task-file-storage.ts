@@ -87,25 +87,3 @@ export async function storeTasks(tasks: Task[]): Promise<void> {
         JSON.stringify({ tasks: tasksArray }, null, 2),
     );
 }
-
-/**
- * Create a new task with the given title and description.
- * @param title - The title of the new task
- * @param description - The description of the new task (optional)
- * @returns The created task
- */
-export async function createTask(
-    title: string,
-    description: string = "",
-): Promise<Task> {
-    const newTask: Task = {
-        uuid: crypto.randomUUID(),
-        title,
-        description,
-        status: "Triage",
-    };
-
-    await addTask(newTask);
-    await triggerTaskCreateCallbacks(newTask);
-    return newTask;
-}

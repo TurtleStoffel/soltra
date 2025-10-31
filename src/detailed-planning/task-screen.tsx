@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { TaskSelector } from "./task-selector.tsx";
 import { TaskDetails } from "./task-details.tsx";
 import { TaskInbox } from "./task-inbox.tsx";
-import { createTask, loadTasks } from "src/entities/tasks/task-file-storage.ts";
+import { loadTasks } from "src/entities/tasks/task-file-storage.ts";
+import { createTask } from "src/entities/tasks/task-service.ts";
 import type { Task } from "src/entities/tasks/types.ts";
 
 export function TaskScreen({ taskId }: { taskId?: string }) {
