@@ -40,16 +40,19 @@ export async function loadGlobalOrder(): Promise<OrderItem[] | null> {
     const text = await readFile(DataFileName.GLOBAL_ORDER);
     if (!text) {
         // File doesn't exist - this is expected on first load
+        console.log("[global-order-storage] loadGlobalOrder: No file found, returning null");
         return null;
     }
 
     const obj = JSON.parse(text);
 
     if (obj && obj.order && Array.isArray(obj.order)) {
-        return obj.order.map((item: any) => ({
+        const order = obj.order.map((item: any) => ({
             type: item.type,
             uuid: item.uuid,
         }));
+        console.log(`[global-order-storage] loadGlobalOrder: Loaded ${order.length} order items`);
+        return order;
     }
 
     // File exists but has invalid format
@@ -60,6 +63,7 @@ export async function loadGlobalOrder(): Promise<OrderItem[] | null> {
  * Store the global order to disk.
  */
 export async function storeGlobalOrder(order: OrderItem[]): Promise<void> {
+    console.log(`[global-order-storage] storeGlobalOrder: Saving ${order.length} order items`);
     await writeFile(
         DataFileName.GLOBAL_ORDER,
         JSON.stringify({ order }, null, 2)

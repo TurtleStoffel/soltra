@@ -11,20 +11,24 @@ export interface InboxTask {
 export async function loadInboxTasks(): Promise<InboxTask[]> {
     const text = await readFile(DataFileName.TASK_INBOX);
     if (!text) {
+        console.log("[task-inbox-storage] loadInboxTasks: No file found, returning empty array");
         return [];
     }
 
     const taskTitles = JSON.parse(text);
     if (Array.isArray(taskTitles)) {
-        return taskTitles.map((title) => ({
+        const tasks = taskTitles.map((title) => ({
             title: title,
         }));
+        console.log(`[task-inbox-storage] loadInboxTasks: Loaded ${tasks.length} inbox tasks`);
+        return tasks;
     }
     throw new Error("Invalid task inbox file format");
 }
 
 export async function storeInboxTasks(tasks: InboxTask[]): Promise<void> {
     const taskTitles = tasks.map((task) => task.title);
+    console.log(`[task-inbox-storage] storeInboxTasks: Saving ${tasks.length} inbox tasks`);
     await writeFile(
         DataFileName.TASK_INBOX,
         JSON.stringify(taskTitles, null, 2),

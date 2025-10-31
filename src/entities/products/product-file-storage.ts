@@ -56,11 +56,12 @@ import type { Product } from "./types";
 export async function loadProducts(): Promise<Product[]> {
     const text = await readFile(DataFileName.PRODUCT);
     if (!text) {
+        console.log("[product-file-storage] loadProducts: No file found, returning empty array");
         return [];
     }
     const obj = JSON.parse(text);
     if (obj && obj.products) {
-        return Object.entries(obj.products).map(([uuid, value]) => {
+        const products = Object.entries(obj.products).map(([uuid, value]) => {
             const product = value as {
                 title: string;
                 description?: string;
@@ -77,6 +78,8 @@ export async function loadProducts(): Promise<Product[]> {
                 workingDirectory: product.workingDirectory,
             };
         });
+        console.log(`[product-file-storage] loadProducts: Loaded ${products.length} products`);
+        return products;
     }
     throw new Error("Invalid product file format");
 }
@@ -113,6 +116,7 @@ export async function storeProducts(products: Product[]): Promise<void> {
             }
         >,
     );
+    console.log(`[product-file-storage] storeProducts: Saving ${products.length} products`);
     await writeFile(
         DataFileName.PRODUCT,
         JSON.stringify({ products: productsObj }, null, 2),

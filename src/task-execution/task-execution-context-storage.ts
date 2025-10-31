@@ -48,13 +48,13 @@ export interface TaskExecutionContext {
  * @returns The task execution context, or null if no directory is found
  */
 export async function getTaskExecutionContext(
-    taskId: string,
+    taskId: string
 ): Promise<TaskExecutionContext | null> {
     const executionContexts = await loadTaskExecutionContexts();
 
     // Get the current task's own context (if any)
     const ownTaskExecutionContext = executionContexts.find(
-        (d) => d.taskId === taskId,
+        (d) => d.taskId === taskId
     );
     const ownContext = ownTaskExecutionContext?.context || [];
     const ownAsync = ownTaskExecutionContext?.async ?? false;
@@ -87,17 +87,17 @@ export async function setTaskExecutionContext(
     taskId: string,
     workingDirectory: string,
     context: string[] = [],
-    async: boolean = false,
+    async: boolean = false
 ): Promise<void> {
     const executionContexts = await loadTaskExecutionContexts();
     const existingIndex = executionContexts.findIndex(
-        (d) => d.taskId === taskId,
+        (d) => d.taskId === taskId
     );
 
     if (existingIndex !== -1) {
-        executionContexts[existingIndex].workingDirectory = workingDirectory;
-        executionContexts[existingIndex].context = context;
-        executionContexts[existingIndex].async = async;
+        executionContexts[existingIndex]!!.workingDirectory = workingDirectory;
+        executionContexts[existingIndex]!!.context = context;
+        executionContexts[existingIndex]!!.async = async;
     } else {
         executionContexts.push({ taskId, workingDirectory, context, async });
     }
@@ -106,7 +106,7 @@ export async function setTaskExecutionContext(
 }
 
 export async function removeTaskExecutionContext(
-    taskId: string,
+    taskId: string
 ): Promise<void> {
     const executionContexts = await loadTaskExecutionContexts();
     const filtered = executionContexts.filter((d) => d.taskId !== taskId);
@@ -115,15 +115,15 @@ export async function removeTaskExecutionContext(
 
 export async function setFilesOnTaskExecutionContext(
     taskId: string,
-    files: string[],
+    files: string[]
 ): Promise<void> {
     const executionContexts = await loadTaskExecutionContexts();
     const contextIndex = executionContexts.findIndex(
-        (d) => d.taskId === taskId,
+        (d) => d.taskId === taskId
     );
 
     if (contextIndex !== -1) {
-        executionContexts[contextIndex].context = files;
+        executionContexts[contextIndex]!!.context = files;
         await storeTaskExecutionContexts(executionContexts);
     } else {
         // If no context exists, get the execution context (which includes inherited working directory)
@@ -139,7 +139,7 @@ export async function setFilesOnTaskExecutionContext(
             await storeTaskExecutionContexts(executionContexts);
         } else {
             throw new Error(
-                "Task execution context must have a working directory before setting files",
+                "Task execution context must have a working directory before setting files"
             );
         }
     }
@@ -148,12 +148,15 @@ export async function setFilesOnTaskExecutionContext(
 async function loadTaskExecutionContexts(): Promise<TaskExecutionContext[]> {
     const text = await readFile(DataFileName.TASK_EXECUTION_CONTEXT);
     if (!text) {
+        console.log(
+            "[task-execution-context-storage] loadTaskExecutionContexts: No file found, returning empty array"
+        );
         return [];
     }
     const obj = JSON.parse(text);
 
     if (obj && typeof obj === "object") {
-        return Object.entries(obj).map(([taskId, value]) => {
+        const contexts = Object.entries(obj).map(([taskId, value]) => {
             const data = value as {
                 workingDirectory: string;
                 context?: string[];
@@ -166,31 +169,32 @@ async function loadTaskExecutionContexts(): Promise<TaskExecutionContext[]> {
                 async: data.async ?? false,
             };
         });
+        console.log(
+            `[task-execution-context-storage] loadTaskExecutionContexts: Loaded ${contexts.length} execution contexts`
+        );
+        return contexts;
     }
 
     throw new Error("Invlid Task Execution Context file format");
 }
 
 async function storeTaskExecutionContexts(
-    executionContexts: TaskExecutionContext[],
+    executionContexts: TaskExecutionContext[]
 ): Promise<void> {
-    const executionContextsObj = executionContexts.reduce(
-        (acc, d) => {
-            acc[d.taskId] = {
-                workingDirectory: d.workingDirectory,
-                context: d.context,
-                async: d.async,
-            };
-            return acc;
-        },
-        {} as Record<
-            string,
-            { workingDirectory: string; context: string[]; async: boolean }
-        >,
-    );
+    const executionContextsObj = executionContexts.reduce((acc, d) => {
+        acc[d.taskId] = {
+            workingDirectory: d.workingDirectory,
+            context: d.context,
+            async: d.async,
+        };
+        return acc;
+    }, {} as Record<string, { workingDirectory: string; context: string[]; async: boolean }>);
 
+    console.log(
+        `[task-execution-context-storage] storeTaskExecutionContexts: Saving ${executionContexts.length} execution contexts`
+    );
     await writeFile(
         DataFileName.TASK_EXECUTION_CONTEXT,
-        JSON.stringify(executionContextsObj, null, 2),
+        JSON.stringify(executionContextsObj, null, 2)
     );
 }

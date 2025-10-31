@@ -62,15 +62,17 @@ import { triggerWorkstreamCreateCallbacks } from "./workstream-hooks";
 export async function loadWorkstreams(): Promise<Workstream[]> {
     const text = await readFile(DataFileName.WORKSTREAM);
     if (!text) {
+        console.log("[workstream-file-storage] loadWorkstreams: No file found, returning empty array");
         return [];
     }
     const obj = JSON.parse(text);
 
     // Support both array format (new) and object format (legacy)
     if (obj && obj.workstreams) {
+        let workstreams: Workstream[];
         if (Array.isArray(obj.workstreams)) {
             // New array format - order is preserved by array order
-            return obj.workstreams.map((ws: any) => ({
+            workstreams = obj.workstreams.map((ws: any) => ({
                 uuid: ws.uuid,
                 title: ws.title,
                 description: ws.description || "",
@@ -79,7 +81,7 @@ export async function loadWorkstreams(): Promise<Workstream[]> {
             }));
         } else {
             // Legacy object format - convert to array
-            return Object.entries(obj.workstreams).map(([uuid, value]) => {
+            workstreams = Object.entries(obj.workstreams).map(([uuid, value]) => {
                 const workstream = value as {
                     title: string;
                     description?: string;
@@ -95,6 +97,8 @@ export async function loadWorkstreams(): Promise<Workstream[]> {
                 };
             });
         }
+        console.log(`[workstream-file-storage] loadWorkstreams: Loaded ${workstreams.length} workstreams`);
+        return workstreams;
     }
     throw new Error("Invalid workstream file format");
 }
@@ -117,6 +121,7 @@ export async function storeWorkstreams(
         dependencies: w.dependencies,
     }));
 
+    console.log(`[workstream-file-storage] storeWorkstreams: Saving ${workstreams.length} workstreams`);
     await writeFile(
         DataFileName.WORKSTREAM,
         JSON.stringify({ workstreams: workstreamsArray }, null, 2),

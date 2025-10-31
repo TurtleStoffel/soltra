@@ -52,17 +52,20 @@ import { triggerTaskCreateCallbacks } from "./task-hooks";
 export async function loadTasks(): Promise<Task[]> {
     const text = await readFile(DataFileName.TASK);
     if (!text) {
+        console.log("[task-file-storage] loadTasks: No file found, returning empty array");
         return [];
     }
     const obj = JSON.parse(text);
 
     if (obj && obj.tasks && Array.isArray(obj.tasks)) {
-        return obj.tasks.map((task: any) => ({
+        const tasks = obj.tasks.map((task: any) => ({
             uuid: task.uuid,
             title: task.title,
             description: task.description || "",
             status: task.status || "Triage",
         }));
+        console.log(`[task-file-storage] loadTasks: Loaded ${tasks.length} tasks`);
+        return tasks;
     }
     throw new Error("Invalid task file format");
 }
@@ -82,6 +85,7 @@ export async function storeTasks(tasks: Task[]): Promise<void> {
         status: t.status,
     }));
 
+    console.log(`[task-file-storage] storeTasks: Saving ${tasks.length} tasks`);
     await writeFile(
         DataFileName.TASK,
         JSON.stringify({ tasks: tasksArray }, null, 2),
