@@ -1,4 +1,4 @@
-import { addTask } from "./task-file-storage";
+import { createTask } from "./task-service";
 import type { Task } from "./types";
 import {
     removeInboxTask,
@@ -9,16 +9,7 @@ import {
 export async function convertInboxTaskToTask(
     inboxTask: InboxTask,
 ): Promise<Task> {
-    const uuid = crypto.randomUUID();
-
-    const task: Task = {
-        uuid,
-        title: inboxTask.title,
-        description: "",
-        status: "Triage",
-    };
-
-    await addTask(task);
+    const task = await createTask(inboxTask.title, "");
     await removeInboxTask(inboxTask.title);
 
     return task;

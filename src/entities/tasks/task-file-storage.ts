@@ -47,7 +47,6 @@ import {
     DataFileName,
 } from "src/persistence/file-system-handles";
 import type { Task } from "./types";
-import { triggerTaskCreateCallbacks } from "./task-hooks";
 
 export async function loadTasks(): Promise<Task[]> {
     const text = await readFile(DataFileName.TASK);
@@ -86,26 +85,4 @@ export async function storeTasks(tasks: Task[]): Promise<void> {
         DataFileName.TASK,
         JSON.stringify({ tasks: tasksArray }, null, 2),
     );
-}
-
-/**
- * Create a new task with the given title and description.
- * @param title - The title of the new task
- * @param description - The description of the new task (optional)
- * @returns The created task
- */
-export async function createTask(
-    title: string,
-    description: string = "",
-): Promise<Task> {
-    const newTask: Task = {
-        uuid: crypto.randomUUID(),
-        title,
-        description,
-        status: "Triage",
-    };
-
-    await addTask(newTask);
-    await triggerTaskCreateCallbacks(newTask);
-    return newTask;
 }
