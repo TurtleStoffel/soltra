@@ -1,9 +1,11 @@
 import {
     GITHUB_PAT,
     TASK_EXECUTION_SERVER_URL,
+    ROOT_CODE_DIR,
 } from "../secrets.ts";
 
 export const CONFIG = {
     GITHUB_PAT: GITHUB_PAT,
     TASK_EXECUTION_SERVER_URL: TASK_EXECUTION_SERVER_URL,
+    ROOT_CODE_DIR: ROOT_CODE_DIR,
 };
